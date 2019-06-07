@@ -1,7 +1,7 @@
 struct Voxelize
 (
 	m_voxels = #(),
-	m_voxelCount = 15,
+	m_voxelCount = 10,
 	
 	fn GetLongestSide obj =
 	(
@@ -10,76 +10,76 @@ struct Voxelize
 		return amax a
 	),
 	
+	fn GridSlice obj =
+	(
+		l = this.GetLongestSide obj
+		l2 = l/2.0
+		voxSize = l / (this.m_voxelCount-1)
+		
+		for i=1 to 3 do
+		(
+			for j=1 to this.m_voxelCount do
+			(
+				v = -l2 + (j-1) * voxSize
+				sm = SliceModifier()
+				if i == 1 do
+				(
+					sm.slice_plane.position = [0,0,v]
+					sm.slice_plane.rotation = (EulerAngles 0 90 0) as quat
+				)
+				if i == 2 do
+				(
+					sm.slice_plane.position = [0,0,v]
+					sm.slice_plane.rotation = (EulerAngles 0 0 0) as quat
+				)
+				if i == 3 do
+				(
+					sm.slice_plane.position = [0,0,v]
+					sm.slice_plane.rotation = (EulerAngles 90 0 0) as quat
+				)
+				addModifier obj sm
+			)
+		)
+	),
+	
 	fn GenerateVoxels obj =
 	(
-		n = NormalModifier()
-		n.flip = false
+		obj = convertToMesh obj
+		vs = vol__select()
 		if (obj.modifiers[1]) == undefined do
 		(
-			AddModifier obj n
-		)		
-		if (classof obj.modifiers[1]) == NormalModifier do
-		(
-			n = obj.modifiers[1]
+			addModifier obj vs
 		)
-			
-		r = Point()
-		r.name = "Voxels"
+		if (classof obj.modifiers[1]) == vol__Select do
+		(
+			vs = obj.modifiers[1]
+		)
 		
 		l = this.GetLongestSide obj
 		l2 = l/2.0
-		voxSize = l / this.m_voxelCount
-		voxSizeH = voxSize / 2.0
+		voxSize = l / (this.m_voxelCount-1)
+		voxSize2 = voxSize / 2.0
 		pos = [0,0,0]
-		dirs = #([1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1])
 		for z=1 to this.m_voxelCount do
 		(
-			zz = z - 1
-			pos.z = zz * voxSize + voxSizeH
+			pos.z = (z-1) * voxSize
 			for y=1 to this.m_voxelCount do
 			(
-				yy = y - 1
-				pos.y = yy * voxSize + voxSizeH
+				pos.y = (y-1) * voxSize
 				for x=1 to this.m_voxelCount do
 				(
-					--pnt = Point()
-					--pnt.parent = r
-					xx = x - 1
-					pos.x = xx * voxSize + voxSizeH
-					po = obj.center - l2 + [0,0,0] + pos
-					--pnt.position = po
-					hit = false
-					for j=1 to 2 do
-					(
-						for i=1 to dirs.count do
-						(
-							ra = ray po dirs[i]
-							h = intersectRay obj ra
-							if h != undefined do
-							(
-								if (distance po h.pos) <= voxSizeH do
-								(
-									hit = true
-									break
-								)
-							)
-						)
-						
-						if hit do
-						(
-							break
-						)
-						n.flip = not n.flip
-					)
+					pos.x = (x-1) * voxSize
 					
-					if hit do
+					b = box()
+					b.position = obj.center - l2 + pos - [0,0,voxSize2]
+					b.width = b.length = b.height = voxSize
+					vs.level = 2
+					vs.volume = 3
+					vs.node = b
+					vs.type = 1
+					if (obj.selectedFaces.count) <= 0 do
 					(
-						p = box()
-						p.width = p.length = p.height = voxSize
-						p.pos = po
-						p.pos.z -= voxSizeH
-						p.parent = r
-						append m_voxels p
+						delete b
 					)
 				)
 			)
@@ -88,4 +88,5 @@ struct Voxelize
 )
 
 vox = Voxelize()
+vox.GridSlice selection[1]
 vox.GenerateVoxels selection[1]
